@@ -52,6 +52,7 @@ from ..annotations import (
     _annotations_starts_stops,
     _combine_annotations,
     _handle_meas_date,
+    _match_descriptions,
     _sync_onset,
     _write_annotations,
 )
@@ -1710,7 +1711,7 @@ class BaseRaw(
         return self
 
     @verbose
-    def crop_by_annotations(self, annotations=None, *, verbose=None):
+    def crop_by_annotations(self, annotations=None, *, regexp=None, verbose=None):
         """Get crops of raw data file for selected annotations.
 
         Parameters
@@ -1718,6 +1719,15 @@ class BaseRaw(
         annotations : instance of Annotations | None
             The annotations to use for cropping the raw file. If None,
             the annotations from the instance are used.
+        regexp : str | None
+            Regular expression used to filter the annotations whose
+            description is a match; only matching annotations are cropped.
+            If ``None`` (default), every annotation is cropped. Matching
+            follows the same convention as :func:`mne.events_from_annotations`
+            (e.g. ``regexp="^BAD_"`` selects all descriptions beginning with
+            ``"BAD_"``; pass ``"(?i)..."`` for case-insensitive matching).
+
+            .. versionadded:: 1.13
         %(verbose)s
 
         Returns
@@ -1727,6 +1737,16 @@ class BaseRaw(
         """
         if annotations is None:
             annotations = self.annotations
+
+        if regexp is not None:
+            sel = _match_descriptions(annotations.description, regexp)
+            if len(sel) == 0:
+                warn(
+                    f"No annotation descriptions matched regexp {regexp!r}; "
+                    "returning an empty list.",
+                    RuntimeWarning,
+                )
+            annotations = annotations[sel]
 
         raws = []
         for annot in annotations:

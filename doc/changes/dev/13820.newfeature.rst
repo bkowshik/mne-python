@@ -1,0 +1,1 @@
+Add a ``regexp`` parameter to :meth:`mne.io.Raw.crop_by_annotations` to crop only annotations whose description matches a regular expression (e.g. ``regexp="^BAD_"``), reusing the same matching convention as :func:`mne.events_from_annotations`, by `Aman Srivastava`_.

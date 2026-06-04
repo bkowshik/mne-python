@@ -661,6 +661,46 @@ def test_crop_by_annotations(meas_date, first_samp):
     assert raws[1].annotations.description[0] == annot.description[1]
 
 
+@pytest.mark.parametrize("meas_date", [None, "orig"])
+@pytest.mark.parametrize("first_samp", [0, 10000])
+def test_crop_by_annotations_regexp(meas_date, first_samp):
+    """Test crop by annotations with a description regexp filter."""
+    raw = read_raw_fif(raw_fname)
+
+    if meas_date is None:
+        raw.set_meas_date(None)
+
+    raw = mne.io.RawArray(raw.get_data(), raw.info, first_samp=first_samp)
+
+    onset = np.array([0, 1.5, 3.0], float)
+    if meas_date is not None:
+        onset += raw.first_time
+    annot = mne.Annotations(
+        onset=onset,
+        duration=[1, 0.5, 0.5],
+        description=["BAD_blink", "stimulus", "BAD_movement"],
+        orig_time=raw.info["meas_date"],
+    )
+    raw.set_annotations(annot)
+
+    # default (regexp=None) crops every annotation, unchanged behavior
+    assert len(raw.crop_by_annotations()) == 3
+
+    # select only the BAD_ annotations
+    raws = raw.crop_by_annotations(regexp="^BAD_")
+    assert len(raws) == 2
+    assert raws[0].annotations.description[0] == "BAD_blink"
+    assert raws[1].annotations.description[0] == "BAD_movement"
+
+    # case-sensitive by default: lowercase pattern matches nothing -> warns
+    with pytest.warns(RuntimeWarning, match="No annotation descriptions matched"):
+        empty = raw.crop_by_annotations(regexp="^bad_")
+    assert empty == []
+
+    # inline flag restores case-insensitivity
+    assert len(raw.crop_by_annotations(regexp="(?i)^bad_")) == 2
+
+
 @pytest.mark.parametrize(
     "offset, origin",
     [

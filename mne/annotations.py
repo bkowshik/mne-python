@@ -2160,9 +2160,24 @@ def _read_annotations_fif(fid, tree):
     return annotations
 
 
+def _match_descriptions(descriptions, regexp):
+    """Return indices of descriptions matching ``regexp`` (all if None).
+
+    This is the regex-matching core shared by annotation-filtering callers
+    (e.g. :func:`events_from_annotations` and ``Raw.crop_by_annotations``).
+    It makes no policy decisions: callers decide what an empty result means.
+    """
+    regexp_comp = re.compile(".*" if regexp is None else regexp)
+    return [
+        ii
+        for ii, desc in enumerate(descriptions)
+        if regexp_comp.match(desc) is not None
+    ]
+
+
 def _select_annotations_based_on_description(descriptions, event_id, regexp):
     """Get a collection of descriptions and returns index of selected."""
-    regexp_comp = re.compile(".*" if regexp is None else regexp)
+    matching = {descriptions[ii] for ii in _match_descriptions(descriptions, regexp)}
 
     event_id_ = dict()
     dropped = []
@@ -2172,7 +2187,7 @@ def _select_annotations_based_on_description(descriptions, event_id, regexp):
         if desc in event_id_:
             continue
 
-        if regexp_comp.match(desc) is None:
+        if desc not in matching:
             continue
 
         if isinstance(event_id, dict):
